@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花费比例计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f4f8;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px;
+        }
+        .card {
+            background: #fff; border-radius: 16px; padding: 28px 24px;
+            max-width: 400px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        h1 { text-align: center; font-size: 1.4rem; color: #1a202c; margin-bottom: 24px; }
+        .input-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.9rem; color: #4a5568; margin-bottom: 6px; font-weight: 500; }
+        .input-row { display: flex; align-items: center; gap: 8px; }
+        .input-row input {
+            flex: 1; padding: 12px 14px; border: 2px solid #e2e8f0;
+            border-radius: 10px; font-size: 1.1rem; outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-row input:focus { border-color: #667eea; }
+        .input-row span { font-size: 0.95rem; color: #718096; white-space: nowrap; }
+        .result {
+            margin-top: 24px; padding: 20px; background: #f7fafc;
+            border-radius: 12px; text-align: center;
+        }
+        .ratio { font-size: 2rem; font-weight: 700; color: #2d3748; }
+        .detail { margin-top: 12px; font-size: 0.95rem; color: #4a5568; line-height: 1.8; }
+        .bar-wrap { display: flex; height: 28px; border-radius: 8px; overflow: hidden; margin-top: 16px; }
+        .bar-a { background: #667eea; transition: flex 0.3s; }
+        .bar-b { background: #48bb78; transition: flex 0.3s; }
+        .legend { display: flex; justify-content: center; gap: 24px; margin-top: 10px; font-size: 0.85rem; color: #4a5568; }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .dot-a { background: #667eea; }
+        .dot-b { background: #48bb78; }
+        .error { color: #e53e3e; font-size: 0.85rem; margin-top: 4px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>花费比例计算器</h1>
+        <div class="input-group">
+            <label>第一个人花了多少元</label>
+            <div class="input-row">
+                <input type="number" id="amountA" placeholder="例如 120" step="0.01" min="0" autofocus>
+                <span>元</span>
+            </div>
+        </div>
+        <div class="input-group">
+            <label>第二个人花了多少元</label>
+            <div class="input-row">
+                <input type="number" id="amountB" placeholder="例如 30" step="0.01" min="0">
+                <span>元</span>
+            </div>
+        </div>
+        <p class="error" id="error">请输入有效的金额</p>
+        <div class="result" id="result">
+            <div class="ratio">—</div>
+            <div class="detail">在上方输入金额即可自动计算</div>
+        </div>
+    </div>
+    <script>
+        var amountA = document.getElementById('amountA');
+        var amountB = document.getElementById('amountB');
+        var resultEl = document.getElementById('result');
+        var errorEl = document.getElementById('error');
+        function gcd(x, y) {
+            x = Math.abs(x); y = Math.abs(y);
+            while (y) { var t = y; y = x % y; x = t; }
+            return x || 1;
+        }
+        function calc() {
+            var a = parseFloat(amountA.value);
+            var b = parseFloat(amountB.value);
+            if (isNaN(a) || isNaN(b) || a < 0 || b < 0) {
+                if (amountA.value || amountB.value) {
+                    errorEl.style.display = 'block';
+                    resultEl.innerHTML = '<div class="ratio">-</div><div class="detail">请输入有效金额</div>';
+                }
+                return;
+            }
+            errorEl.style.display = 'none';
+            var total = a + b;
+            if (total === 0) {
+                resultEl.innerHTML = '<div class="ratio">-</div><div class="detail">请输入大于 0 的金额</div>';
+                return;
+            }
+            var decA = (a.toString().split('.')[1] || '').length;
+            var decB = (b.toString().split('.')[1] || '').length;
+            var maxDec = Math.max(decA, decB);
+            var scale = Math.pow(10, maxDec);
+            var na = Math.round(a * scale);
+            var nb = Math.round(b * scale);
+            var g = gcd(na, nb);
+            na /= g; nb /= g;
+            var pctA = (a / total * 100).toFixed(1);
+            var pctB = (b / total * 100).toFixed(1);
+            resultEl.innerHTML =
+                '<div class="ratio">' + na + ' : ' + nb + '</div>' +
+                '<div class="detail">第一个人占 <strong>' + pctA + '%</strong>，第二个人占 <strong>' + pctB + '%</strong></div>' +
+                '<div class="bar-wrap">' +
+                    '<div class="bar-a" style="flex:' + a + '"></div>' +
+                    '<div class="bar-b" style="flex:' + b + '"></div>' +
+                '</div>' +
+                '<div class="legend">' +
+                    '<span><i class="dot dot-a"></i> 第一个人</span>' +
+                    '<span><i class="dot dot-b"></i> 第二个人</span>' +
+                '</div>';
+        }
+        amountA.addEventListener('input', calc);
+        amountB.addEventListener('input', calc);
+    </script>
+</body>
+</html>
