@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网站图标获取工具</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23667eea'/><circle cx='42' cy='42' r='26' fill='none' stroke='white' stroke-width='10'/><line x1='60' y1='60' x2='88' y2='88' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f4f8;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px;
+        }
+        .card {
+            background: #fff; border-radius: 16px; padding: 28px 24px;
+            max-width: 480px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center; font-size: 1.4rem; color: #1a202c; margin-bottom: 8px;
+        }
+        .subtitle {
+            text-align: center; font-size: 0.85rem; color: #a0aec0; margin-bottom: 24px;
+        }
+        .input-group { margin-bottom: 16px; }
+        label {
+            display: block; font-size: 0.9rem; color: #4a5568; margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .input-row { display: flex; gap: 10px; }
+        .input-row input {
+            flex: 1; padding: 12px 14px; border: 2px solid #e2e8f0;
+            border-radius: 10px; font-size: 1rem; outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-row input:focus { border-color: #667eea; }
+        .input-row input::placeholder { color: #cbd5e0; }
+        .btn {
+            padding: 12px 20px; background: #667eea; color: #fff;
+            border: none; border-radius: 10px; font-size: 0.95rem;
+            cursor: pointer; transition: background 0.2s; white-space: nowrap;
+        }
+        .btn:hover { background: #5a67d8; }
+        .btn:active { background: #4c51bf; }
+
+        .result {
+            margin-top: 20px; padding: 24px; background: #f7fafc;
+            border-radius: 12px; text-align: center; min-height: 120px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 12px;
+            transition: opacity 0.3s;
+        }
+        .result.loading { opacity: 0.6; }
+
+        .icon-stage {
+            display: flex; align-items: center; justify-content: center;
+            min-height: 80px;
+        }
+        .icon-display {
+            max-width: 120px; max-height: 120px;
+            border-radius: 14px;
+            background: #fff;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+            padding: 8px;
+            display: none;
+        }
+        .icon-display.show { display: block; }
+        .icon-placeholder {
+            font-size: 2.5rem; color: #cbd5e0;
+        }
+
+        .url-box {
+            display: flex; align-items: center; gap: 8px;
+            background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 8px; padding: 8px 12px; width: 100%;
+        }
+        .url-box span {
+            flex: 1; font-size: 0.8rem; color: #4a5568;
+            word-break: break-all; text-align: left;
+        }
+        .copy-btn {
+            padding: 6px 14px; background: #edf2f7; color: #4a5568;
+            border: none; border-radius: 6px; font-size: 0.8rem;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .copy-btn:hover { background: #e2e8f0; }
+        .copy-btn.copied { background: #48bb78; color: #fff; }
+        .status-text { font-size: 0.9rem; color: #718096; }
+        .status-text.error { color: #e53e3e; }
+
+        .sources {
+            margin-top: 4px; font-size: 0.72rem; color: #a0aec0;
+            display: flex; flex-wrap: wrap; gap: 4px 10px;
+            justify-content: center;
+        }
+        .sources span { display: flex; align-items: center; gap: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot-try { background: #ecc94b; }
+        .dot-ok { background: #48bb78; }
+        .dot-fail { background: #fc8181; }
+
+        .size-badge {
+            font-size: 0.72rem; color: #a0aec0;
+        }
+
+        .quick-sites {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+        }
+        .quick-btn {
+            padding: 6px 12px; background: #edf2f7; border: 1px solid #e2e8f0;
+            border-radius: 8px; font-size: 0.8rem; color: #4a5568;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .quick-btn:hover { background: #e2e8f0; border-color: #667eea; }
+
+        .multi-icons {
+            display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+            margin-top: 4px;
+        }
+        .multi-icon-item {
+            width: 48px; height: 48px; border-radius: 10px;
+            background: #fff; box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: center;
+            padding: 6px; cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .multi-icon-item:hover {
+            transform: scale(1.1); box-shadow: 0 2px 14px rgba(0,0,0,0.12);
+        }
+        .multi-icon-item img {
+            max-width: 36px; max-height: 36px;
+        }
+        .multi-icon-item.active {
+            outline: 2px solid #667eea; outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔍 网站图标获取</h1>
+        <p class="subtitle">输入网站链接即可获取高清图标</p>
+
+        <div class="input-group">
+            <label>网站链接</label>
+            <div class="input-row">
+                <input type="text" id="urlInput" placeholder="例如 https://github.com" autofocus>
+                <button class="btn" id="fetchBtn">获取图标</button>
+            </div>
+        </div>
+
+        <div class="quick-sites" id="quickSites"></div>
+
+        <div class="result" id="result">
+            <div class="icon-stage" id="iconStage">
+                <span class="icon-placeholder" id="placeholder">🌐</span>
+                <img class="icon-display" id="iconImg" alt="网站图标">
+            </div>
+            <span class="size-badge" id="sizeBadge" style="display:none;"></span>
+            <p class="status-text" id="status">输入链接后点击按钮</p>
+            <div class="url-box" id="urlBox" style="display:none;">
+                <span id="faviconUrl"></span>
+                <button class="copy-btn" id="copyBtn">复制</button>
+            </div>
+            <div class="sources" id="sources"></div>
+            <div class="multi-icons" id="multiIcons"></div>
+        </div>
+    </div>
+
+    <script>
+        var urlInput = document.getElementById('urlInput');
+        var fetchBtn = document.getElementById('fetchBtn');
+        var iconStage = document.getElementById('iconStage');
+        var iconImg = document.getElementById('iconImg');
+        var placeholder = document.getElementById('placeholder');
+        var statusText = document.getElementById('status');
+        var sizeBadge = document.getElementById('sizeBadge');
+        var urlBox = document.getElementById('urlBox');
+        var faviconUrlEl = document.getElementById('faviconUrl');
+        var copyBtn = document.getElementById('copyBtn');
+        var sourcesEl = document.getElementById('sources');
+        var multiIconsEl = document.getElementById('multiIcons');
+        var resultEl = document.getElementById('result');
+
+        function extractDomain(url) {
+            url = url.trim();
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+            }
+            try {
+                var u = new URL(url);
+                return { domain: u.hostname, origin: u.origin };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getFaviconSources(domain) {
+            return [
+                { label: 'Google V2', url: 'https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://' + domain + '&size=256' },
+                { label: 'Google S2', url: 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=256' },
+                { label: 'Apple Touch', url: 'https://' + domain + '/apple-touch-icon.png' },
+                { label: 'DuckDuckGo', url: 'https://icons.duckduckgo.com/ip3/' + domain + '.ico' },
+                { label: '根目录', url: 'https://' + domain + '/favicon.ico' },
+                { label: 'Icon Horse', url: 'https://icon.horse/icon/' + domain }
+            ];
+        }
+
+        function updateSources(marks) {
+            sourcesEl.innerHTML = marks.map(function(m) {
+                var cls = m.status === 'ok' ? 'dot-ok' : (m.status === 'fail' ? 'dot-fail' : 'dot-try');
+                return '<span><i class="dot ' + cls + '"></i> ' + m.label + '</span>';
+            }).join('');
+        }
+
+        function resetUI() {
+            iconImg.classList.remove('show');
+            iconImg.src = '';
+            iconImg.style.width = '';
+            iconImg.style.height = '';
+            placeholder.style.display = '';
+            placeholder.textContent = '🌐';
+            urlBox.style.display = 'none';
+            faviconUrlEl.textContent = '';
+            copyBtn.textContent = '复制';
+            copyBtn.classList.remove('copied');
+            sizeBadge.style.display = 'none';
+            sizeBadge.textContent = '';
+            resultEl.classList.add('loading');
+            statusText.textContent = '正在获取...';
+            statusText.className = 'status-text';
+            sourcesEl.innerHTML = '';
+            multiIconsEl.innerHTML = '';
+        }
+
+        var allLoaded = {};
+        var displayedUrl = '';
+
+        function pickBest() {
+            var keys = Object.keys(allLoaded);
+            if (keys.length === 0) return null;
+            var best = null, bestDim = 0;
+            keys.forEach(function(url) {
+                var d = Math.min(allLoaded[url].w, allLoaded[url].h);
+                if (d > bestDim) { bestDim = d; best = url; }
+            });
+            return { url: best, dim: bestDim };
+        }
+
+        function displayIcon(url) {
+            if (displayedUrl === url) return;
+            displayedUrl = url;
+            var info = allLoaded[url];
+            var w = info.w, h = info.h;
+
+            // 自适应大小：按原始尺寸显示，最大 120px，最小 48px
+            var displaySize = Math.max(w, h);
+            if (displaySize > 120) displaySize = 120;
+            if (displaySize < 48) displaySize = 48;
+            iconImg.style.width = displaySize + 'px';
+            iconImg.style.height = displaySize + 'px';
+            iconImg.src = url;
+            iconImg.classList.add('show');
+            placeholder.style.display = 'none';
+            resultEl.classList.remove('loading');
+
+            if (w >= 96) {
+                sizeBadge.textContent = w + 'x' + h + ' ✓高清';
+            } else if (w >= 48) {
+                sizeBadge.textContent = w + 'x' + h;
+            } else {
+                sizeBadge.textContent = w + 'x' + h + ' (低分辨率)';
+            }
+            sizeBadge.style.display = 'inline-block';
+            statusText.textContent = '图标获取成功!';
+            statusText.className = 'status-text';
+
+            faviconUrlEl.textContent = url;
+            urlBox.style.display = 'flex';
+
+            renderMultiIcons();
+        }
+
+        function renderMultiIcons() {
+            var keys = Object.keys(allLoaded);
+            if (keys.length <= 1) { multiIconsEl.innerHTML = ''; return; }
+
+            multiIconsEl.innerHTML = keys.map(function(url) {
+                var active = url === displayedUrl ? ' active' : '';
+                return '<div class="multi-icon-item' + active + '" data-url="' + url + '">' +
+                    '<img src="' + url + '" alt="">' +
+                    '</div>';
+            }).join('');
+
+            multiIconsEl.querySelectorAll('.multi-icon-item').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    var u = el.getAttribute('data-url');
+                    displayIcon(u);
+                });
+            });
+        }
+
+        function fetchFavicon() {
+            var input = urlInput.value.trim();
+            if (!input) { showError('请输入网站链接'); return; }
+
+            var parsed = extractDomain(input);
+            if (!parsed) { showError('无法解析链接，请检查格式'); return; }
+
+            resetUI();
+            var domain = parsed.domain;
+            var sources = getFaviconSources(domain);
+            var marks = sources.map(function(s) { return { label: s.label, status: 'try' }; });
+            updateSources(marks);
+            allLoaded = {};
+            displayedUrl = '';
+
+            var doneCount = 0;
+            var anySuccess = false;
+
+            sources.forEach(function(source) {
+                var img = new Image();
+                img.onload = function() {
+                    doneCount++;
+                    anySuccess = true;
+                    allLoaded[source.url] = { img: img, w: img.naturalWidth, h: img.naturalHeight };
+                    marks.forEach(function(m) {
+                        if (m.label === source.label) m.status = 'ok';
+                    });
+                    updateSources(marks);
+
+                    var best = pickBest();
+                    if (best) displayIcon(best.url);
+
+                    if (doneCount >= sources.length) finish();
+                };
+                img.onerror = function() {
+                    doneCount++;
+                    marks.forEach(function(m) {
+                        if (m.label === source.label) m.status = 'fail';
+                    });
+                    updateSources(marks);
+
+                    if (doneCount >= sources.length) finish();
+                };
+                img.src = source.url;
+            });
+
+            function finish() {
+                if (!anySuccess) {
+                    resultEl.classList.remove('loading');
+                    showError('所有来源均无法获取该网站图标');
+                }
+            }
+        }
+
+        function showError(msg) {
+            iconImg.classList.remove('show');
+            iconImg.style.width = '';
+            iconImg.style.height = '';
+            placeholder.style.display = '';
+            placeholder.textContent = '❌';
+            resultEl.classList.remove('loading');
+            statusText.textContent = msg;
+            statusText.className = 'status-text error';
+            urlBox.style.display = 'none';
+            sizeBadge.style.display = 'none';
+            multiIconsEl.innerHTML = '';
+        }
+
+        copyBtn.addEventListener('click', function() {
+            var url = faviconUrlEl.textContent;
+            if (!url) return;
+            navigator.clipboard.writeText(url).then(function() {
+                copyBtn.textContent = '已复制!';
+                copyBtn.classList.add('copied');
+                setTimeout(function() {
+                    copyBtn.textContent = '复制';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(function() {
+                var ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.position = 'fixed'; ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                copyBtn.textContent = '已复制!';
+                copyBtn.classList.add('copied');
+                setTimeout(function() {
+                    copyBtn.textContent = '复制';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            });
+        });
+
+        fetchBtn.addEventListener('click', fetchFavicon);
+        urlInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') fetchFavicon();
+        });
+
+        // 快捷网站
+        var quickSites = [
+            { name: 'GitHub', url: 'github.com' },
+            { name: '百度', url: 'baidu.com' },
+            { name: '谷歌', url: 'google.com' },
+            { name: 'B站', url: 'bilibili.com' },
+            { name: '知乎', url: 'zhihu.com' },
+            { name: '淘宝', url: 'taobao.com' }
+        ];
+        var qsEl = document.getElementById('quickSites');
+        quickSites.forEach(function(site) {
+            var btn = document.createElement('button');
+            btn.className = 'quick-btn';
+            btn.textContent = site.name;
+            btn.addEventListener('click', function() {
+                urlInput.value = site.url;
+                fetchFavicon();
+            });
+            qsEl.appendChild(btn);
+        });
+    </script>
+</body>
+</html>
