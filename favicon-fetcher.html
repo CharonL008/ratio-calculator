@@ -23,6 +23,27 @@
         .subtitle {
             text-align: center; font-size: 0.85rem; color: #a0aec0; margin-bottom: 24px;
         }
+
+        .tabs {
+            display: flex; gap: 4px; margin-bottom: 20px;
+            background: #edf2f7; border-radius: 10px; padding: 4px;
+        }
+        .tab {
+            flex: 1; padding: 10px 0; text-align: center;
+            border: none; border-radius: 8px; cursor: pointer;
+            font-size: 0.9rem; font-weight: 500;
+            background: transparent; color: #718096;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: #fff; color: #1a202c;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        .tab:hover:not(.active) { color: #4a5568; }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
         .input-group { margin-bottom: 16px; }
         label {
             display: block; font-size: 0.9rem; color: #4a5568; margin-bottom: 6px;
@@ -43,6 +64,23 @@
         }
         .btn:hover { background: #5a67d8; }
         .btn:active { background: #4c51bf; }
+        .btn-outline {
+            padding: 12px 20px; background: #fff; color: #667eea;
+            border: 2px solid #667eea; border-radius: 10px; font-size: 0.95rem;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-outline:hover { background: #f0f0ff; }
+
+        .upload-zone {
+            border: 2px dashed #cbd5e0; border-radius: 12px;
+            padding: 30px 20px; text-align: center; cursor: pointer;
+            transition: all 0.2s; margin-bottom: 16px;
+        }
+        .upload-zone:hover { border-color: #667eea; background: #f8f9ff; }
+        .upload-zone.dragover { border-color: #667eea; background: #eef0ff; }
+        .upload-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
+        .upload-zone .hint { font-size: 0.85rem; color: #a0aec0; }
+        .upload-zone .hint strong { color: #667eea; }
 
         .result {
             margin-top: 20px; padding: 24px; background: #f7fafc;
@@ -78,6 +116,7 @@
         .url-box span {
             flex: 1; font-size: 0.8rem; color: #4a5568;
             word-break: break-all; text-align: left;
+            max-height: 48px; overflow-y: auto;
         }
         .copy-btn {
             padding: 6px 14px; background: #edf2f7; color: #4a5568;
@@ -139,17 +178,35 @@
 <body>
     <div class="card">
         <h1>🔍 网站图标获取</h1>
-        <p class="subtitle">输入网站链接即可获取高清图标</p>
+        <p class="subtitle">获取网站图标 / 上传图标生成URL</p>
 
-        <div class="input-group">
-            <label>网站链接</label>
-            <div class="input-row">
-                <input type="text" id="urlInput" placeholder="例如 https://github.com" autofocus>
-                <button class="btn" id="fetchBtn">获取图标</button>
-            </div>
+        <div class="tabs">
+            <button class="tab active" id="tabFetch">从网站获取</button>
+            <button class="tab" id="tabUpload">上传图标生成URL</button>
         </div>
 
-        <div class="quick-sites" id="quickSites"></div>
+        <!-- 面板1：从网站获取 -->
+        <div class="panel active" id="panelFetch">
+            <div class="input-group">
+                <label>网站链接</label>
+                <div class="input-row">
+                    <input type="text" id="urlInput" placeholder="例如 https://github.com" autofocus>
+                    <button class="btn" id="fetchBtn">获取图标</button>
+                </div>
+            </div>
+            <div class="quick-sites" id="quickSites"></div>
+        </div>
+
+        <!-- 面板2：上传图标 -->
+        <div class="panel" id="panelUpload">
+            <div class="upload-zone" id="uploadZone">
+                <div class="icon">📁</div>
+                <p style="font-size:0.95rem;color:#4a5568;margin-bottom:4px;">点击选择文件或拖拽到此处</p>
+                <p class="hint">支持 <strong>.ico</strong> / .png / .svg 等图标文件</p>
+                <input type="file" id="fileInput" accept=".ico,.png,.svg,.jpg,.jpeg,.webp,.gif" style="display:none;">
+            </div>
+            <button class="btn-outline" id="clearUploadBtn" style="display:none;width:100%;">清除当前图标</button>
+        </div>
 
         <div class="result" id="result">
             <div class="icon-stage" id="iconStage">
@@ -157,7 +214,7 @@
                 <img class="icon-display" id="iconImg" alt="网站图标">
             </div>
             <span class="size-badge" id="sizeBadge" style="display:none;"></span>
-            <p class="status-text" id="status">输入链接后点击按钮</p>
+            <p class="status-text" id="status">输入链接或上传图标开始</p>
             <div class="url-box" id="urlBox" style="display:none;">
                 <span id="faviconUrl"></span>
                 <button class="copy-btn" id="copyBtn">复制</button>
@@ -168,9 +225,12 @@
     </div>
 
     <script>
+        // ====== DOM 元素 ======
         var urlInput = document.getElementById('urlInput');
         var fetchBtn = document.getElementById('fetchBtn');
-        var iconStage = document.getElementById('iconStage');
+        var fileInput = document.getElementById('fileInput');
+        var uploadZone = document.getElementById('uploadZone');
+        var clearUploadBtn = document.getElementById('clearUploadBtn');
         var iconImg = document.getElementById('iconImg');
         var placeholder = document.getElementById('placeholder');
         var statusText = document.getElementById('status');
@@ -182,6 +242,147 @@
         var multiIconsEl = document.getElementById('multiIcons');
         var resultEl = document.getElementById('result');
 
+        // ====== 标签切换 ======
+        var tabFetch = document.getElementById('tabFetch');
+        var tabUpload = document.getElementById('tabUpload');
+        var panelFetch = document.getElementById('panelFetch');
+        var panelUpload = document.getElementById('panelUpload');
+
+        tabFetch.addEventListener('click', function() {
+            tabFetch.classList.add('active');
+            tabUpload.classList.remove('active');
+            panelFetch.classList.add('active');
+            panelUpload.classList.remove('active');
+        });
+        tabUpload.addEventListener('click', function() {
+            tabUpload.classList.add('active');
+            tabFetch.classList.remove('active');
+            panelUpload.classList.add('active');
+            panelFetch.classList.remove('active');
+        });
+
+        // ====== 上传功能 ======
+        uploadZone.addEventListener('click', function() { fileInput.click(); });
+
+        uploadZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', function() {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            var file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', function() {
+            var file = fileInput.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            // 检查格式
+            var validTypes = ['image/x-icon','image/vnd.microsoft.icon','image/png','image/svg+xml','image/jpeg','image/webp','image/gif'];
+            var isIco = file.name.toLowerCase().endsWith('.ico');
+            if (!validTypes.includes(file.type) && !isIco) {
+                showError('请上传图标文件 (.ico / .png / .svg 等)');
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var dataUrl = e.target.result;
+
+                // 显示图标
+                iconImg.src = dataUrl;
+                iconImg.onload = function() {
+                    var w = iconImg.naturalWidth;
+                    var h = iconImg.naturalHeight;
+                    var displaySize = Math.max(w, h);
+                    if (displaySize > 120) displaySize = 120;
+                    if (displaySize < 48) displaySize = 48;
+                    iconImg.style.width = displaySize + 'px';
+                    iconImg.style.height = displaySize + 'px';
+                    iconImg.classList.add('show');
+                    placeholder.style.display = 'none';
+                    resultEl.classList.remove('loading');
+
+                    if (w >= 96) {
+                        sizeBadge.textContent = w + 'x' + h + ' ✓高清';
+                    } else if (w >= 48) {
+                        sizeBadge.textContent = w + 'x' + h;
+                    } else {
+                        sizeBadge.textContent = w + 'x' + h + ' (低分辨率)';
+                    }
+                    sizeBadge.style.display = 'inline-block';
+                    statusText.textContent = '图标上传成功!';
+                    statusText.className = 'status-text';
+
+                    // 显示 URL
+                    faviconUrlEl.textContent = dataUrl.substring(0, 120) + '...';
+                    faviconUrlEl.title = dataUrl;
+                    urlBox.style.display = 'flex';
+                    sourcesEl.innerHTML = '';
+                    multiIconsEl.innerHTML = '';
+                    clearUploadBtn.style.display = 'block';
+
+                    // 存起来供复制用
+                    _uploadedDataUrl = dataUrl;
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        var _uploadedDataUrl = '';
+
+        clearUploadBtn.addEventListener('click', function() {
+            fileInput.value = '';
+            _uploadedDataUrl = '';
+            clearUploadBtn.style.display = 'none';
+            iconImg.classList.remove('show');
+            iconImg.src = '';
+            iconImg.style.width = '';
+            iconImg.style.height = '';
+            placeholder.style.display = '';
+            placeholder.textContent = '🌐';
+            urlBox.style.display = 'none';
+            sizeBadge.style.display = 'none';
+            statusText.textContent = '输入链接或上传图标开始';
+            statusText.className = 'status-text';
+        });
+
+        // ====== 复制按钮（需要处理上传后的 data URL） ======
+        copyBtn.addEventListener('click', function() {
+            var url = _uploadedDataUrl || faviconUrlEl.textContent;
+            if (!url) return;
+            navigator.clipboard.writeText(url).then(function() {
+                copyBtn.textContent = '已复制!';
+                copyBtn.classList.add('copied');
+                setTimeout(function() {
+                    copyBtn.textContent = '复制';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(function() {
+                var ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.position = 'fixed'; ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                copyBtn.textContent = '已复制!';
+                copyBtn.classList.add('copied');
+                setTimeout(function() {
+                    copyBtn.textContent = '复制';
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            });
+        });
+
+        // ====== 从网站获取（原功能） ======
         function extractDomain(url) {
             url = url.trim();
             if (!/^https?:\/\//i.test(url)) {
@@ -214,6 +415,8 @@
         }
 
         function resetUI() {
+            _uploadedDataUrl = '';
+            clearUploadBtn.style.display = 'none';
             iconImg.classList.remove('show');
             iconImg.src = '';
             iconImg.style.width = '';
@@ -253,7 +456,6 @@
             var info = allLoaded[url];
             var w = info.w, h = info.h;
 
-            // 自适应大小：按原始尺寸显示，最大 120px，最小 48px
             var displaySize = Math.max(w, h);
             if (displaySize > 120) displaySize = 120;
             if (displaySize < 48) displaySize = 48;
@@ -355,6 +557,8 @@
         }
 
         function showError(msg) {
+            _uploadedDataUrl = '';
+            clearUploadBtn.style.display = 'none';
             iconImg.classList.remove('show');
             iconImg.style.width = '';
             iconImg.style.height = '';
@@ -367,33 +571,6 @@
             sizeBadge.style.display = 'none';
             multiIconsEl.innerHTML = '';
         }
-
-        copyBtn.addEventListener('click', function() {
-            var url = faviconUrlEl.textContent;
-            if (!url) return;
-            navigator.clipboard.writeText(url).then(function() {
-                copyBtn.textContent = '已复制!';
-                copyBtn.classList.add('copied');
-                setTimeout(function() {
-                    copyBtn.textContent = '复制';
-                    copyBtn.classList.remove('copied');
-                }, 2000);
-            }).catch(function() {
-                var ta = document.createElement('textarea');
-                ta.value = url;
-                ta.style.position = 'fixed'; ta.style.left = '-9999px';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                copyBtn.textContent = '已复制!';
-                copyBtn.classList.add('copied');
-                setTimeout(function() {
-                    copyBtn.textContent = '复制';
-                    copyBtn.classList.remove('copied');
-                }, 2000);
-            });
-        });
 
         fetchBtn.addEventListener('click', fetchFavicon);
         urlInput.addEventListener('keydown', function(e) {
