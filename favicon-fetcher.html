@@ -109,19 +109,28 @@
         }
 
         .url-box {
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: flex-start; gap: 8px;
             background: #fff; border: 1px solid #e2e8f0;
             border-radius: 8px; padding: 8px 12px; width: 100%;
         }
-        .url-box span {
-            flex: 1; font-size: 0.8rem; color: #4a5568;
+        .url-box .url-text {
+            flex: 1; font-size: 0.75rem; color: #4a5568;
             word-break: break-all; text-align: left;
-            max-height: 48px; overflow-y: auto;
+            max-height: 80px; overflow-y: auto;
+            line-height: 1.4;
+        }
+        .url-box .url-text.is-data-url {
+            font-family: monospace;
+            font-size: 0.7rem;
+        }
+        .url-box .url-hint {
+            font-size: 0.72rem; color: #a0aec0; margin-top: 2px;
         }
         .copy-btn {
             padding: 6px 14px; background: #edf2f7; color: #4a5568;
             border: none; border-radius: 6px; font-size: 0.8rem;
             cursor: pointer; transition: all 0.2s; white-space: nowrap;
+            flex-shrink: 0;
         }
         .copy-btn:hover { background: #e2e8f0; }
         .copy-btn.copied { background: #48bb78; color: #fff; }
@@ -139,9 +148,7 @@
         .dot-ok { background: #48bb78; }
         .dot-fail { background: #fc8181; }
 
-        .size-badge {
-            font-size: 0.72rem; color: #a0aec0;
-        }
+        .size-badge { font-size: 0.72rem; color: #a0aec0; }
 
         .quick-sites {
             display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
@@ -167,11 +174,18 @@
         .multi-icon-item:hover {
             transform: scale(1.1); box-shadow: 0 2px 14px rgba(0,0,0,0.12);
         }
-        .multi-icon-item img {
-            max-width: 36px; max-height: 36px;
-        }
+        .multi-icon-item img { max-width: 36px; max-height: 36px; }
         .multi-icon-item.active {
             outline: 2px solid #667eea; outline-offset: 2px;
+        }
+
+        .url-info-row {
+            display: flex; flex-direction: column; align-items: flex-start;
+            width: 100%;
+        }
+        .url-file-info {
+            font-size: 0.78rem; color: #4a5568; margin-bottom: 4px;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -216,7 +230,11 @@
             <span class="size-badge" id="sizeBadge" style="display:none;"></span>
             <p class="status-text" id="status">输入链接或上传图标开始</p>
             <div class="url-box" id="urlBox" style="display:none;">
-                <span id="faviconUrl"></span>
+                <div class="url-info-row">
+                    <span class="url-file-info" id="urlFileInfo" style="display:none;"></span>
+                    <span class="url-text" id="faviconUrlEl"></span>
+                    <span class="url-hint" id="urlHint" style="display:none;">(已生成 data URL，点击复制按钮获取完整链接)</span>
+                </div>
                 <button class="copy-btn" id="copyBtn">复制</button>
             </div>
             <div class="sources" id="sources"></div>
@@ -225,7 +243,7 @@
     </div>
 
     <script>
-        // ====== DOM 元素 ======
+        // ====== DOM ======
         var urlInput = document.getElementById('urlInput');
         var fetchBtn = document.getElementById('fetchBtn');
         var fileInput = document.getElementById('fileInput');
@@ -236,7 +254,9 @@
         var statusText = document.getElementById('status');
         var sizeBadge = document.getElementById('sizeBadge');
         var urlBox = document.getElementById('urlBox');
-        var faviconUrlEl = document.getElementById('faviconUrl');
+        var faviconUrlEl = document.getElementById('faviconUrlEl');
+        var urlFileInfo = document.getElementById('urlFileInfo');
+        var urlHint = document.getElementById('urlHint');
         var copyBtn = document.getElementById('copyBtn');
         var sourcesEl = document.getElementById('sources');
         var multiIconsEl = document.getElementById('multiIcons');
@@ -260,6 +280,9 @@
             panelUpload.classList.add('active');
             panelFetch.classList.remove('active');
         });
+
+        // ====== 全局状态 ======
+        var _currentUrl = '';  // 当前完整 URL（供复制用）
 
         // ====== 上传功能 ======
         uploadZone.addEventListener('click', function() { fileInput.click(); });
@@ -285,9 +308,9 @@
 
         function handleFile(file) {
             // 检查格式
-            var validTypes = ['image/x-icon','image/vnd.microsoft.icon','image/png','image/svg+xml','image/jpeg','image/webp','image/gif'];
-            var isIco = file.name.toLowerCase().endsWith('.ico');
-            if (!validTypes.includes(file.type) && !isIco) {
+            var validExts = ['.ico','.png','.svg','.jpg','.jpeg','.webp','.gif','.bmp'];
+            var ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validExts.includes(ext)) {
                 showError('请上传图标文件 (.ico / .png / .svg 等)');
                 return;
             }
@@ -321,26 +344,31 @@
                     statusText.textContent = '图标上传成功!';
                     statusText.className = 'status-text';
 
-                    // 显示 URL
-                    faviconUrlEl.textContent = dataUrl.substring(0, 120) + '...';
-                    faviconUrlEl.title = dataUrl;
+                    // 显示完整 URL
+                    _currentUrl = dataUrl;
+                    faviconUrlEl.textContent = dataUrl;
+                    faviconUrlEl.className = 'url-text is-data-url';
+                    urlFileInfo.textContent = '📎 ' + file.name + ' (' + formatSize(file.size) + ') → data URL';
+                    urlFileInfo.style.display = 'block';
+                    urlHint.style.display = 'block';
                     urlBox.style.display = 'flex';
                     sourcesEl.innerHTML = '';
                     multiIconsEl.innerHTML = '';
                     clearUploadBtn.style.display = 'block';
-
-                    // 存起来供复制用
-                    _uploadedDataUrl = dataUrl;
                 };
             };
             reader.readAsDataURL(file);
         }
 
-        var _uploadedDataUrl = '';
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+            return (bytes/(1024*1024)).toFixed(1) + ' MB';
+        }
 
         clearUploadBtn.addEventListener('click', function() {
             fileInput.value = '';
-            _uploadedDataUrl = '';
+            _currentUrl = '';
             clearUploadBtn.style.display = 'none';
             iconImg.classList.remove('show');
             iconImg.src = '';
@@ -350,15 +378,21 @@
             placeholder.textContent = '🌐';
             urlBox.style.display = 'none';
             sizeBadge.style.display = 'none';
+            urlFileInfo.style.display = 'none';
+            urlHint.style.display = 'none';
             statusText.textContent = '输入链接或上传图标开始';
             statusText.className = 'status-text';
         });
 
-        // ====== 复制按钮（需要处理上传后的 data URL） ======
+        // ====== 复制按钮 ======
         copyBtn.addEventListener('click', function() {
-            var url = _uploadedDataUrl || faviconUrlEl.textContent;
+            var url = _currentUrl;
             if (!url) return;
-            navigator.clipboard.writeText(url).then(function() {
+            copyToClipboard(url);
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
                 copyBtn.textContent = '已复制!';
                 copyBtn.classList.add('copied');
                 setTimeout(function() {
@@ -367,7 +401,7 @@
                 }, 2000);
             }).catch(function() {
                 var ta = document.createElement('textarea');
-                ta.value = url;
+                ta.value = text;
                 ta.style.position = 'fixed'; ta.style.left = '-9999px';
                 document.body.appendChild(ta);
                 ta.select();
@@ -380,9 +414,9 @@
                     copyBtn.classList.remove('copied');
                 }, 2000);
             });
-        });
+        }
 
-        // ====== 从网站获取（原功能） ======
+        // ====== 从网站获取 ======
         function extractDomain(url) {
             url = url.trim();
             if (!/^https?:\/\//i.test(url)) {
@@ -415,7 +449,7 @@
         }
 
         function resetUI() {
-            _uploadedDataUrl = '';
+            _currentUrl = '';
             clearUploadBtn.style.display = 'none';
             iconImg.classList.remove('show');
             iconImg.src = '';
@@ -425,6 +459,9 @@
             placeholder.textContent = '🌐';
             urlBox.style.display = 'none';
             faviconUrlEl.textContent = '';
+            faviconUrlEl.className = 'url-text';
+            urlFileInfo.style.display = 'none';
+            urlHint.style.display = 'none';
             copyBtn.textContent = '复制';
             copyBtn.classList.remove('copied');
             sizeBadge.style.display = 'none';
@@ -477,7 +514,9 @@
             statusText.textContent = '图标获取成功!';
             statusText.className = 'status-text';
 
+            _currentUrl = url;
             faviconUrlEl.textContent = url;
+            faviconUrlEl.className = 'url-text';
             urlBox.style.display = 'flex';
 
             renderMultiIcons();
@@ -557,7 +596,7 @@
         }
 
         function showError(msg) {
-            _uploadedDataUrl = '';
+            _currentUrl = '';
             clearUploadBtn.style.display = 'none';
             iconImg.classList.remove('show');
             iconImg.style.width = '';
